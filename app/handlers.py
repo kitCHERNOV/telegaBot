@@ -65,8 +65,7 @@ async def get_url(message: Message, state: FSMContext):
 @router.callback_query(F.data == 'urlOfGitHub')
 async def ret_to_mainkb(callback: CallbackQuery):
     await callback.answer()
-    print("N world")
-    await callback.message.answer('https://github.com/kitCHERNOV/EcomDjango.git', reply_markup=kb_main)
+    await callback.message.answer('https://github.com/kitCHERNOV/telegaBot.git', reply_markup=kb_main)
 
 @router.message(Form.continue_get)
 async def crossroad(message: Message, state: FSMContext):
