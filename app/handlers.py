@@ -4,15 +4,19 @@ import os
 
 from aiogram import F, Router
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message, FSInputFile, BufferedInputFile
+from aiogram.types import Message, CallbackQuery, FSInputFile, BufferedInputFile
 from aiogram.types import ReplyKeyboardRemove, \
     ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
 import requests
 import json
 from PIL import Image
+
+import yt_dlp
 
 
 router = Router()
@@ -25,30 +29,64 @@ kb_main = ReplyKeyboardMarkup(keyboard=[
     [KeyboardButton(text='Where is project lay?')]
 ], one_time_keyboard=True)
 
+kb_back = ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text='Back')]
+], one_time_keyboard=True)
+
 class Form(StatesGroup):
     waiting_fro_promt = State()
+    audio_get = State()
+    continue_get = State()
 
 @router.message(CommandStart())
 async def cmd_start(message: Message):
     await message.reply(f'Hello.\nYour ID: {message.from_user.id}\nName: {message.from_user.first_name}',
                         reply_markup=kb_main)
 
-# create async func for stop generate images
-@router.message(Form.waiting_fro_promt)
-async def back_fr_genImg(message: Message):
-    back_kb = ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text='Back')]
-    ])
-    await message.reply(reply_markup=back_kb)
+
+
 
 @router.message(F.text == 'Generate images')
 async def gen_image(message: Message, state: FSMContext):
     await message.answer("Enter a prompt")
     await state.set_state(Form.waiting_fro_promt)
 
+# ============================================================================ #
+def gitHubUrl():
+    inl_kb = [
+        [InlineKeyboardButton(text='link to repo', callback_data='urlOfGitHub')], #, url='https://github.com/kitCHERNOV/EcomDjango.git')],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=inl_kb)
+
+@router.message(F.text == 'Where is project lay?')
+async def get_url(message: Message, state: FSMContext):
+    await message.answer('link to repo', reply_markup=gitHubUrl())
+
+@router.callback_query(F.data == 'urlOfGitHub')
+async def ret_to_mainkb(callback: CallbackQuery):
+    await callback.answer()
+    print("N world")
+    await callback.message.answer('https://github.com/kitCHERNOV/EcomDjango.git', reply_markup=kb_main)
+
+@router.message(Form.continue_get)
+async def crossroad(message: Message, state: FSMContext):
+    if message.text == 'No':
+        await message.answer("All right, we go back", reply_markup=kb_main)
+    elif message.text == 'Yes':
+        await state.set_state(Form.waiting_fro_promt)
+        await  message.answer("You are continue. Write new prompt")
+
+# ================================================================================= #
+
 
 @router.message(Form.waiting_fro_promt)
-async def generate_images(message: Message):
+async def generate_images(message: Message, state: FSMContext):
+    # if message.text == 'back':
+    #     await
+    #     await state.set_state(Form.get_kebord)
+    await state.clear()
+
+
     payload = json.dumps({
         "key": API_KEY,
         "prompt": message.text,
@@ -102,3 +140,55 @@ async def generate_images(message: Message):
     # photo = FSInputFile('C:/Other/DL/L1/app/images/img1.png')
 
     await message.answer_photo(photo)
+    await message.answer(f'request: {message.text}') #,reply_markup=kb_back)
+    await message.answer(f'Are you want to continue?')
+
+    await state.set_state(Form.continue_get)
+
+
+# ================================================================================ #
+def download_audio(anime_title):
+    if not os.path.exists('downloads'):
+        os.makedirs('downloads')
+
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'extractaudio': True,
+        'audioformat': 'mp3',
+        'outtmpl': ('downloads/'+str(anime_title)+'.mp3'),
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            search_results = ydl.extract_info(f"ytsearch:{anime_title} opening", download=True)
+            if search_results['entries']:
+                video_url = search_results['entries'][0]['url']
+                ydl.download([video_url])
+                audio_file = f"downloads/{anime_title}.mp3"
+                if os.path.exists(audio_file):
+                    return audio_file
+                else:
+                    return None
+            else:
+                return None
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+
+
+@router.message(F.text == 'find a music')
+async def transitToAudioFunc(message: Message, state: FSMContext):
+    await state.set_state(Form.audio_get)
+    await message.answer('What kind of audio do you want to find?')
+
+@router.message(Form.audio_get)
+async def InputNameOfMusic(message: Message, state: FSMContext):
+    audio_file = download_audio(message.text)
+    if audio_file and os.path.exists(audio_file):
+        with open(audio_file, 'rb'):
+            audio_byte_io = FSInputFile(audio_file)
+            await state.clear()
+            await message.answer_audio(audio_byte_io, reply_markup=kb_main)
+        os.remove(audio_file)  # Удаляем файл после отправки
+    else:
+        await message.reply(message.text, "Не удалось найти опенинг для указанного аниме.")
