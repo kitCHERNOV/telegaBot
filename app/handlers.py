@@ -40,7 +40,7 @@ class Form(StatesGroup):
 
 @router.message(CommandStart())
 async def cmd_start(message: Message):
-    await message.reply(f'Hello.\nYour ID: {message.from_user.id}\nName: {message.from_user.first_name}',
+    await message.reply(f'Hello',
                         reply_markup=kb_main)
 
 
