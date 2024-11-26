@@ -20,7 +20,7 @@ import yt_dlp
 
 
 router = Router()
-API_KEY = 'WwS2Oam4hElngKG0vuIIN8CfbWzUpr0d3vdKVC1oQmZPEjAoQiPQu6PZGHfx'
+API_KEY = 'Ukj6MtrLV23rnsiHZykzXZ1iOR1u7s9avScLnBRBG94NjB5ghszwoOspW2Jf'
 url = "https://stablediffusionapi.com/api/v3/text2img"
 
 # Just write a keyboard
@@ -63,15 +63,16 @@ async def get_url(message: Message, state: FSMContext):
     await message.answer('link to repo', reply_markup=gitHubUrl())
 
 @router.callback_query(F.data == 'urlOfGitHub')
-async def ret_to_mainkb(callback: CallbackQuery):
+async def ret_to_mainkb(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
+    await state.clear()
     await callback.message.answer('https://github.com/kitCHERNOV/telegaBot.git', reply_markup=kb_main)
 
 @router.message(Form.continue_get)
 async def crossroad(message: Message, state: FSMContext):
-    if message.text == 'No':
+    if message.text in ['No','no','n']:
         await message.answer("All right, we go back", reply_markup=kb_main)
-    elif message.text == 'Yes':
+    elif message.text in ['Yes','yes','y']:
         await state.set_state(Form.waiting_fro_promt)
         await  message.answer("You are continue. Write new prompt")
 
@@ -113,10 +114,10 @@ async def generate_images(message: Message, state: FSMContext):
     response = requests.request("POST", url, headers=headers, data=payload)
 
     json_string = response.text
-    print(json_string)
-    json_oblect = json.loads(json_string)
 
-    link = json_oblect["output"][0]
+    json_object = json.loads(json_string)
+
+    link = json_object[ "output"][0]
 
     response = requests.get(link)
 
@@ -159,7 +160,7 @@ def download_audio(anime_title):
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            search_results = ydl.extract_info(f"ytsearch:{anime_title} opening", download=True)
+            search_results = ydl.extract_info(f"ytsearch:{anime_title} song", download=True) # can add opening
             if search_results['entries']:
                 video_url = search_results['entries'][0]['url']
                 ydl.download([video_url])
