@@ -40,6 +40,7 @@ class Form(StatesGroup):
 
 @router.message(CommandStart())
 async def cmd_start(message: Message):
+    # logging.INFO("using start command")
     await message.reply(f'Hello',
                         reply_markup=kb_main)
 
@@ -71,6 +72,7 @@ async def ret_to_mainkb(callback: CallbackQuery, state: FSMContext):
 @router.message(Form.continue_get)
 async def crossroad(message: Message, state: FSMContext):
     if message.text in ['No','no','n']:
+        await state.clear()
         await message.answer("All right, we go back", reply_markup=kb_main)
     elif message.text in ['Yes','yes','y']:
         await state.set_state(Form.waiting_fro_promt)
